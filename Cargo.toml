@@ -10,9 +10,10 @@ license = "MIT OR Apache-2.0"
 description = "Ranged integers"
 
 [features]
-default = ["std"]
+default = ["std", "unsafe-range-assert"]
 std = []
 const-eval = []
+unsafe-range-assert = []
 
 [package.metadata.docs.rs]
 all-features = true

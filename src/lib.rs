@@ -35,6 +35,8 @@
 )]
 #![doc(test(attr(deny(warnings))))]
 #![cfg_attr(feature = "const-eval", feature(const_generics,const_evaluatable_checked))]
+#![cfg_attr(feature = "unsafe-range-assert", feature(const_unreachable_unchecked))]
+
 
 #[cfg(feature = "const-eval")]
 use core::ops::{Index,IndexMut};
@@ -55,6 +57,31 @@ impl fmt::Display for TryFromIntError {
 }
 #[cfg(feature = "std")]
 impl Error for TryFromIntError {}
+
+#[cfg(feature = "unsafe-range-assert")]
+macro_rules! unsafe_is_range {
+    ($min:expr, $max_incl:expr, $val:expr) => {
+        {
+            let v = $val;
+            // We have to do this "manually" because it won't allow ranges made from const generics
+            // The comparison is only unused (usually <= 0 on an unsigned type) in half the cases, so isn't generic
+            #[allow(clippy::manual_range_contains, unused_comparisons)]
+            if $min <= v && v <= $max_incl {
+                v
+            } else {
+                #[allow(unused_unsafe)]
+                unsafe { ::core::hint::unreachable_unchecked() }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "unsafe-range-assert"))]
+macro_rules! unsafe_is_range {
+    ($min:expr, $max_incl:expr, $val:expr) => {
+        $val
+    };
+}
 
 macro_rules! const_try_opt {
     ($e:expr) => {
@@ -114,7 +141,7 @@ macro_rules! impl_ranged {
             ///
             /// The value must be within the range `MIN..=MAX`.
             pub const unsafe fn new_unchecked(value: $internal) -> Self {
-                Self(value)
+                Self(unsafe_is_range!(MIN, MAX, value))
             }
 
             /// Creates a ranged integer if the given value is in the range
@@ -139,7 +166,7 @@ macro_rules! impl_ranged {
 
             /// Returns the value as a primitive type.
             pub const fn get(self) -> $internal {
-                self.0
+                unsafe_is_range!(MIN, MAX, self.0)
             }
 
             /// Checked integer addition. Computes `self + rhs`, returning
@@ -288,12 +315,14 @@ macro_rules! impl_ranged {
 
         impl<const MIN: $internal, const MAX: $internal> AsRef<$internal> for $type<MIN, MAX> {
             fn as_ref(&self) -> &$internal {
+                let _ = unsafe_is_range!(MIN, MAX, self.0);
                 &self.0
             }
         }
 
         impl<const MIN: $internal, const MAX: $internal> Borrow<$internal> for $type<MIN, MAX> {
             fn borrow(&self) -> &$internal {
+                let _ = unsafe_is_range!(MIN, MAX, self.0);
                 &self.0
             }
         }
@@ -305,19 +334,19 @@ macro_rules! impl_ranged {
             const MAX_B: $internal,
         > PartialEq<$type<MIN_B, MAX_B>> for $type<MIN_A, MAX_A> {
             fn eq(&self, other: &$type<MIN_B, MAX_B>) -> bool {
-                self.0 == other.0
+                unsafe_is_range!(MIN_A, MAX_A, self.0) == unsafe_is_range!(MIN_B, MAX_B, other.0)
             }
         }
 
         impl<const MIN: $internal, const MAX: $internal> PartialEq<$internal> for $type<MIN, MAX> {
             fn eq(&self, other: &$internal) -> bool {
-                self.0 == *other
+                unsafe_is_range!(MIN, MAX, self.0) == *other
             }
         }
 
         impl<const MIN: $internal, const MAX: $internal> PartialEq<$type<MIN, MAX>> for $internal {
             fn eq(&self, other: &$type<MIN, MAX>) -> bool {
-                *self == other.0
+                *self == unsafe_is_range!(MIN, MAX, other.0)
             }
         }
 
@@ -328,19 +357,19 @@ macro_rules! impl_ranged {
             const MAX_B: $internal,
         > PartialOrd<$type<MIN_B, MAX_B>> for $type<MIN_A, MAX_A> {
             fn partial_cmp(&self, other: &$type<MIN_B, MAX_B>) -> Option<Ordering> {
-                self.0.partial_cmp(&other.0)
+                unsafe_is_range!(MIN_A, MAX_A, self.0).partial_cmp(&unsafe_is_range!(MIN_B, MAX_B, other.0))
             }
         }
 
         impl<const MIN: $internal, const MAX: $internal> PartialOrd<$internal> for $type<MIN, MAX> {
             fn partial_cmp(&self, other: &$internal) -> Option<Ordering> {
-                self.0.partial_cmp(other)
+                unsafe_is_range!(MIN, MAX, self.0).partial_cmp(other)
             }
         }
 
         impl<const MIN: $internal, const MAX: $internal> PartialOrd<$type<MIN, MAX>> for $internal {
             fn partial_cmp(&self, other: &$type<MIN, MAX>) -> Option<Ordering> {
-                self.partial_cmp(&other.0)
+                self.partial_cmp(&unsafe_is_range!(MIN, MAX, other.0))
             }
         }
 
@@ -382,7 +411,7 @@ macro_rules! impl_ranged {
 
         $(impl<const MIN: $internal, const MAX: $internal> From<$type<MIN,MAX>> for $into {
             fn from(value: $type<MIN, MAX>) -> Self {
-                value.0.into()
+                unsafe_is_range!(MIN, MAX, value.0).into()
             }
         })*
 
@@ -446,7 +475,7 @@ macro_rules! impl_ranged {
             const MAX: $internal,
         > rand::distributions::Distribution<$type<MIN, MAX>> for rand::distributions::Standard {
             fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> $type<MIN, MAX> {
-                $type(rng.gen_range(MIN..=MAX))
+                $type(unsafe_is_range!(MIN, MAX, rng.gen_range(MIN..=MAX)))
             }
         }
     )*};
@@ -566,7 +595,7 @@ macro_rules! impl_array_index {
         impl<T> Index<Usize<0,$size_minus_one>> for [T; $size] {
             type Output = T;
             fn index(&self, idx: Usize<0,$size_minus_one>) -> &Self::Output {
-                let i:usize = idx.into();
+                let i:usize = unsafe_is_range!(0, $size_minus_one, idx.into());
                 unsafe {
                     self.get_unchecked(i)
                 }
@@ -575,7 +604,7 @@ macro_rules! impl_array_index {
         
         impl<T> IndexMut<Usize<0,$size_minus_one>> for [T; $size] {
             fn index_mut(&mut self, idx: Usize<0,$size_minus_one>) -> &mut Self::Output {
-                let i:usize = idx.into();
+                let i:usize = unsafe_is_range!(0, $size_minus_one, idx.into());
                 unsafe {
                     self.get_unchecked_mut(i)
                 }

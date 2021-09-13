@@ -12,6 +12,7 @@ description = "Ranged integers"
 [features]
 default = ["std"]
 std = []
+const-eval = []
 
 [package.metadata.docs.rs]
 all-features = true

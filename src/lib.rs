@@ -164,6 +164,13 @@ macro_rules! impl_ranged {
                 })
             }
 
+            pub fn all_values() -> impl
+                core::iter::Iterator<Item=Self> +
+                core::iter::FusedIterator +
+                core::iter::DoubleEndedIterator {
+                (MIN..=MAX).into_iter().map(|n| unsafe { Self::new_unchecked(n) })
+            }
+
             /// Returns the value as a primitive type.
             pub const fn get(self) -> $internal {
                 unsafe_is_range!(MIN, MAX, self.0)

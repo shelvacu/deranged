@@ -79,15 +79,22 @@ macro_rules! unsafe_is_range {
 #[cfg(not(feature = "unsafe-range-assert"))]
 macro_rules! unsafe_is_range {
     ($min:expr, $max_incl:expr, $val:expr) => {
-        let v = $val;
-        #[allow(clippy::manual_range_contains, unused_comparisons)]
-        if $min <= v && v <= $max_incl {
-            v
-        } else {
-            panic!("Expected val to be in range {}..={}, was {}", $min, $max, v);
-        }
-    };
+        $val
+    }
 }
+// macro_rules! unsafe_is_range {
+//     ($min:expr, $max_incl:expr, $val:expr) => {
+//         {
+//             let v = $val;
+//             #[allow(clippy::manual_range_contains, unused_comparisons)]
+//             if $min <= v && v <= $max_incl {
+//                 v
+//             } else {
+//                 panic!("Expected val to be in range {}..={}, was {}", $min, $max_incl, v);
+//             }
+//         }
+//     };
+// }
 
 macro_rules! const_try_opt {
     ($e:expr) => {

@@ -79,7 +79,13 @@ macro_rules! unsafe_is_range {
 #[cfg(not(feature = "unsafe-range-assert"))]
 macro_rules! unsafe_is_range {
     ($min:expr, $max_incl:expr, $val:expr) => {
-        $val
+        let v = $val;
+        #[allow(clippy::manual_range_contains, unused_comparisons)]
+        if $min <= v && v <= $max_incl {
+            v
+        } else {
+            panic!("Expected val to be in range {}..={}, was {}", $min, $max, v);
+        }
     };
 }
 
@@ -580,9 +586,12 @@ impl<T, const N: usize> Index<Usize<0,N>> for [T; N+1] {
     type Output = T;
     fn index(&self, idx: Usize<0,N>) -> &Self::Output {
         let i:usize = idx.into();
+        #[cfg(feature = "unsafe-range-assert")]
         unsafe {
             self.get_unchecked(i)
         }
+        #[cfg(not(feature = "unsafe-range-assert"))]
+        self.get(i).unwrap()
     }
 }
 
@@ -590,9 +599,12 @@ impl<T, const N: usize> Index<Usize<0,N>> for [T; N+1] {
 impl<T, const N: usize> IndexMut<Usize<0,N>> for [T; N+1] {
     fn index_mut(&mut self, idx: Usize<0,N>) -> &mut Self::Output {
         let i:usize = idx.into();
+        #[cfg(feature = "unsafe-range-assert")]
         unsafe {
             self.get_unchecked_mut(i)
         }
+        #[cfg(not(feature = "unsafe-range-assert"))]
+        self.get_mut(i).unwrap()
     }
 }
 
@@ -603,18 +615,24 @@ macro_rules! impl_array_index {
             type Output = T;
             fn index(&self, idx: Usize<0,$size_minus_one>) -> &Self::Output {
                 let i:usize = unsafe_is_range!(0, $size_minus_one, idx.into());
+                #[cfg(feature = "unsafe-range-assert")]
                 unsafe {
                     self.get_unchecked(i)
                 }
+                #[cfg(not(feature = "unsafe-range-assert"))]
+                self.get(i).unwrap()
             }
         }
         
         impl<T> IndexMut<Usize<0,$size_minus_one>> for [T; $size] {
             fn index_mut(&mut self, idx: Usize<0,$size_minus_one>) -> &mut Self::Output {
                 let i:usize = unsafe_is_range!(0, $size_minus_one, idx.into());
+                #[cfg(feature = "unsafe-range-assert")]
                 unsafe {
                     self.get_unchecked_mut(i)
                 }
+                #[cfg(not(feature = "unsafe-range-assert"))]
+                self.get_mut(i).unwrap()
             }
         }
     };

@@ -456,13 +456,9 @@ macro_rules! impl_ranged {
                     Err(_) => return Err(TryFromIntError)
                 };
 
-                if value < MIN || value > MAX {
-                    Err(TryFromIntError)
-                } else {
-                    match TryFrom::try_from(value) {
-                        Ok(value) => Ok(value),
-                        Err(_) => Err(TryFromIntError),
-                    }
+                match Self::new(value) {
+                    None => Err(TryFromIntError),
+                    Some(v) => Ok(v),
                 }
             }
         })*

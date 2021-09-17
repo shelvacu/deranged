@@ -36,7 +36,7 @@
 #![doc(test(attr(deny(warnings))))]
 #![cfg_attr(feature = "const-eval", feature(const_generics,const_evaluatable_checked))]
 #![cfg_attr(feature = "unsafe-range-assert", feature(const_unreachable_unchecked))]
-
+#![feature(const_panic)]
 
 #[cfg(feature = "const-eval")]
 use core::ops::{Index,IndexMut};
@@ -79,7 +79,12 @@ macro_rules! unsafe_is_range {
 #[cfg(not(feature = "unsafe-range-assert"))]
 macro_rules! unsafe_is_range {
     ($min:expr, $max_incl:expr, $val:expr) => {
-        $val
+        {
+            let v = $val;
+            #[allow(clippy::manual_range_contains, unused_comparisons)]
+            if v < $min || v > $max_incl { panic!("Out of range"); }
+            v
+        }
     }
 }
 // macro_rules! unsafe_is_range {

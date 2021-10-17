@@ -35,8 +35,6 @@
 )]
 #![doc(test(attr(deny(warnings))))]
 #![cfg_attr(feature = "const-eval", feature(const_generics,const_evaluatable_checked))]
-#![cfg_attr(feature = "unsafe-range-assert", feature(const_unreachable_unchecked))]
-#![feature(const_panic)]
 
 #[cfg(feature = "const-eval")]
 use core::ops::{Index,IndexMut};

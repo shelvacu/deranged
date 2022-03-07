@@ -34,7 +34,7 @@
     clippy::redundant_pub_crate
 )]
 #![doc(test(attr(deny(warnings))))]
-#![cfg_attr(feature = "const-eval", feature(const_generics,const_evaluatable_checked))]
+#![cfg_attr(feature = "const-eval", feature(generic_const_exprs))]
 
 #[cfg(feature = "const-eval")]
 use core::ops::{Index,IndexMut};
